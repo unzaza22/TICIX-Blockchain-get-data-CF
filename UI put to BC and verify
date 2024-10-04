@@ -1,0 +1,127 @@
+import hashlib
+from web3 import Web3
+import json
+import tkinter as tk
+from tkinter import filedialog, messagebox
+from tkinter import ttk
+
+def get_file_hash(file_path):
+    sha256_hash = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+    return sha256_hash.hexdigest()
+
+def verify_file(file_path, stored_hash):
+    file_hash = get_file_hash(file_path)
+    return file_hash == stored_hash
+
+# ตั้งค่า Web3 เพื่อเชื่อมต่อกับ BNB Chain Testnet
+bsc_testnet_url = "https://data-seed-prebsc-1-s1.binance.org:8545/"
+web3 = Web3(Web3.HTTPProvider(bsc_testnet_url))
+
+# ตรวจสอบการเชื่อมต่อ
+if web3.is_connected():
+    print("Connected to BNB Chain Testnet")
+else:
+    print("Connection failed")
+
+# ใส่ ABI และ Address ของ Smart Contract ที่ปรับใช้แล้ว
+with open('D:/BlockchainCBF/VisualStudio/compiled_abi.json', 'r') as abi_file:
+    abi = json.load(abi_file)
+
+contract_address = '0xf9d03e63a734e9d2f9B72B8Df906C59cF665D890'
+contract = web3.eth.contract(address=contract_address, abi=abi)
+
+# ตั้งค่าบัญชี MetaMask
+private_key = 'pri_key'
+account = web3.eth.account.from_key(private_key)
+
+# ฟังก์ชันในการเพิ่มข้อมูลแฮชลงใน blockchain
+def add_file(file_name, file_hash):
+    txn = contract.functions.addFile(file_name, file_hash).build_transaction({
+        'chainId': 97,
+        'gas': 300000,  # เพิ่ม Gas Limit
+        'gasPrice': web3.to_wei('10', 'gwei'),
+        'nonce': web3.eth.get_transaction_count(account.address),
+    })
+
+    signed_txn = web3.eth.account.sign_transaction(txn, private_key)
+    tx_hash = web3.eth.send_raw_transaction(signed_txn.rawTransaction)
+    return web3.to_hex(tx_hash)
+
+def select_file(entry):
+    file_path = filedialog.askopenfilename()
+    if file_path:
+        entry.delete(0, tk.END)
+        entry.insert(0, file_path)
+
+def submit_file():
+    file_path = file_name_entry.get()
+    if not file_path:
+        messagebox.showerror("Error", "Please select a file")
+        return
+
+    try:
+        file_hash = get_file_hash(file_path)
+        tx_hash = add_file(file_path, file_hash)
+        messagebox.showinfo("Success", f"Transaction hash: {tx_hash}")
+    except Exception as e:
+        messagebox.showerror("Error", str(e))
+
+def verify_file_gui():
+    file_path = verify_file_name_entry.get()
+    stored_hash = stored_hash_entry.get()
+    if not file_path or not stored_hash:
+        messagebox.showerror("Error", "Please select a file and enter the stored hash")
+        return
+
+    try:
+        is_valid = verify_file(file_path, stored_hash)
+        if is_valid:
+            messagebox.showinfo("Success", "File is valid")
+        else:
+            messagebox.showerror("Error", "File is not valid")
+    except Exception as e:
+        messagebox.showerror("Error", str(e))
+
+# สร้าง GUI
+root = tk.Tk()
+root.title("Blockchain File Hash")
+
+tabControl = ttk.Notebook(root)
+
+tab1 = ttk.Frame(tabControl)
+tab2 = ttk.Frame(tabControl)
+
+tabControl.add(tab1, text='Send to Blockchain')
+tabControl.add(tab2, text='Verify File')
+tabControl.pack(expand=1, fill="both")
+
+# Tab 1: Send to Blockchain
+tk.Label(tab1, text="File Path:").grid(row=0, column=0, padx=10, pady=10)
+file_name_entry = tk.Entry(tab1, width=50)
+file_name_entry.grid(row=0, column=1, padx=10, pady=10)
+
+select_button = tk.Button(tab1, text="Select File", command=lambda: select_file(file_name_entry))
+select_button.grid(row=0, column=2, padx=10, pady=10)
+
+submit_button = tk.Button(tab1, text="Submit", command=submit_file)
+submit_button.grid(row=1, column=1, padx=10, pady=10)
+
+# Tab 2: Verify File
+tk.Label(tab2, text="File Path:").grid(row=0, column=0, padx=10, pady=10)
+verify_file_name_entry = tk.Entry(tab2, width=50)
+verify_file_name_entry.grid(row=0, column=1, padx=10, pady=10)
+
+select_verify_button = tk.Button(tab2, text="Select File", command=lambda: select_file(verify_file_name_entry))
+select_verify_button.grid(row=0, column=2, padx=10, pady=10)
+
+tk.Label(tab2, text="Stored Hash:").grid(row=1, column=0, padx=10, pady=10)
+stored_hash_entry = tk.Entry(tab2, width=50)
+stored_hash_entry.grid(row=1, column=1, padx=10, pady=10)
+
+verify_button = tk.Button(tab2, text="Verify", command=verify_file_gui)
+verify_button.grid(row=2, column=1, padx=10, pady=10)
+
+root.mainloop()
