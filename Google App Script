@@ -1,0 +1,257 @@
+let formID = '1We7aRAu3qJSvx43bzguT77bpvzXUAtzhnvBNpRJhguc';
+let sheetID = '1QhdPaPX9OL_zHvTSagHwmNylkXteD0wqXUOdmIPQjUo';
+let sheetMain = 'การตอบแบบฟอร์ม 1';
+let sheetEF = 'ค่าการปล่อย';
+let sheetUrl = 'https://docs.google.com/spreadsheets/d/1QhdPaPX9OL_zHvTSagHwmNylkXteD0wqXUOdmIPQjUo/edit?resourcekey=&gid=2070886943#gid=2070886943';
+
+let index_col = {
+  'timestamp': 1,
+  'email': 2,
+  'title': 3,
+  'fullname': 4,
+  'company_name': 5,
+  'address': 6,
+  'sub_district': 7,
+  'district': 8,
+  'province': 9,
+  'postal_code': 10,
+  'contact_number': 11,
+  'vehicle_type': 12,
+  'license_plate': 13,
+  'fuel_type': 14,
+  'distance_used': 15,
+  'refrigerant_type': 16,
+  'refrigerant_quantity': 17,
+  'industry_type': 18,
+  'treatment_method': 19,
+  'water_treatment_volume': 20,
+  'chemicals_used': 21,
+  'chemical_quantity': 22,
+  'fuel_usage': 23,
+  'fuel_quantity': 24,
+  'electricity_usage': 25,
+  'consumeble_usage': 26,
+  'consumeble_quantity': 27,
+  'water_usage': 28,
+  'car_emission': 29,
+  'refrigerant_emission':30,
+  'water_treatment_emission':31,
+  'chemical_emission':32,
+  'combustion_fuel_emission':33,
+  'electricity_emission':34,
+  'consumebles_emission':35,
+  'water_emission':36,
+  'all_total_emission':37
+};
+
+let index_EF_col = {
+  'ชนิดของรถ' : 1,
+  'ค่าการปล่อยรถ' : 2,
+  'น้ำมันรถ' : 3,
+  'ค่าการปล่อยน้ำมันรถ' : 4,
+  'ชนิดสารทำความเย็น':5,
+  'ค่าการปล่อยสารทำความเย็น':6,
+  'วิธีการบำบัดน้ำ':7,
+  'ค่าการปล่อยวิธีการบำบัดน้ำ':8,
+  'ประเภทอุตสหกรรม':9,
+  'ค่าการปล่อยCOD':10,
+  'สารเคมี':11,
+  'ค่าการปล่อยสารเคมี':12,
+  'เชื้อเพลิงเผาไหม้':13,
+  'ค่าการปล่อยเชื้อเพลิงเผาไหม้':14,
+  'วัสดุสิ้นเปลือง':15,
+  'ค่าการปล่อยวัสดุสิ้นเปลือง':16
+}
+
+const spreadsheet = SpreadsheetApp.openById(sheetID); //google sheet ที่เก็บคำตอบ
+const sheetData = spreadsheet.getSheetByName(sheetMain); //เรียกใช้ sheet การตอบแบบฟอร์ม
+const sheetDataEF = spreadsheet.getSheetByName(sheetEF);
+
+function onFormSubmit(e) {
+  calculateTravel();
+}
+
+function calculateTravel() {
+  const lastRow = sheetData.getLastRow(); //get row ล่าสุดที่เพิ่มเข้ามา
+
+  // car_emission
+  const travelColumn = index_col['car_emission'];
+  let carEF = carType(sheetData.getRange(lastRow, index_col['vehicle_type']).getValue());
+  let fuelEF = fuelType(sheetData.getRange(lastRow, index_col['fuel_type']).getValue());
+  let distanceCar = sheetData.getRange(lastRow, index_col['distance_used']).getValue();
+  const travelValue = (distanceCar / carEF) * fuelEF;
+  sheetData.getRange(lastRow, travelColumn).setValue(travelValue);
+
+  // refrigerant_emission
+  const refrigerantColumn = index_col['refrigerant_emission'];
+  let refrigerantEF = refrigerantType(sheetData.getRange(lastRow, index_col['refrigerant_type']).getValue());
+  let refrigerantQuatity = sheetData.getRange(lastRow, index_col['refrigerant_quantity']).getValue();
+  const refrigerantValue = refrigerantEF * refrigerantQuatity;
+  sheetData.getRange(lastRow, refrigerantColumn).setValue(refrigerantValue);
+
+  // water_treatment_emission
+  const water_treatmentColumn = index_col['water_treatment_emission'];
+  let water_treatmentEF = water_treatmentType(sheetData.getRange(lastRow, index_col['treatment_method']).getValue());
+  let industryEF = industryType(sheetData.getRange(lastRow, index_col['industry_type']).getValue());
+  let water_treatmentVolume = sheetData.getRange(lastRow, index_col['water_treatment_volume']).getValue();
+  let sludge = 0;
+  const water_treatmentValue = water_treatmentEF * [(water_treatmentVolume * industryEF / 1000) - sludge];
+  sheetData.getRange(lastRow, water_treatmentColumn).setValue(water_treatmentValue);
+
+  // chemicals_emission
+  const chemicalsColumn = index_col['chemical_emission'];
+  let chemicalsUsed = sheetData.getRange(lastRow, index_col['chemicals_used']).getValue();
+  let chemicalsVolume = sheetData.getRange(lastRow, index_col['chemical_quantity']).getValue();
+  let chemicalsEF = chemicalsType(chemicalsUsed);
+  const chemicalsValue = chemicalsEF * chemicalsVolume;
+  sheetData.getRange(lastRow, chemicalsColumn).setValue(chemicalsValue);
+
+  // fuel_emission
+  const combustion_fuelColumn = index_col['combustion_fuel_emission'];
+  let combustion_fuelEF = combustion_fuelType(sheetData.getRange(lastRow, index_col['fuel_usage']).getValue());
+  let combustion_fuelVolume = sheetData.getRange(lastRow, index_col['fuel_quantity']).getValue();
+  let combustion_fuelValue = combustion_fuelEF * combustion_fuelVolume;
+  sheetData.getRange(lastRow, combustion_fuelColumn).setValue(combustion_fuelValue);
+
+  // electricity_emission
+  const electricityColumn = index_col['electricity_emission'];
+  let electricityVolume = sheetData.getRange(lastRow, index_col['electricity_usage']).getValue();
+  let electricityEF = 0.3972;
+  let electricityValue = electricityVolume * electricityEF;
+  sheetData.getRange(lastRow, electricityColumn).setValue(electricityValue);
+
+  // consumebles_emission
+  const consumeblesColumn = index_col['consumebles_emission'];
+  let consumeblesUsed = sheetData.getRange(lastRow, index_col['consumeble_usage']).getValue();
+  let consumeblesEF = consumeblesType(consumeblesUsed);
+  let consumeblesVolume = sheetData.getRange(lastRow, index_col['consumeble_quantity']).getValue();
+  let consumeblesValue = consumeblesEF * consumeblesVolume;
+  sheetData.getRange(lastRow, consumeblesColumn).setValue(consumeblesValue);
+
+  // water_emission
+  const waterColumn = index_col['water_emission'];
+  let waterVolume = sheetData.getRange(lastRow, index_col['water_usage']).getValue();
+  let waterEF = 0.7948;
+  let waterValue = waterVolume * waterEF;
+  sheetData.getRange(lastRow, waterColumn).setValue(waterValue);
+
+  // all_total_emision
+  const all_totalColumn = index_col['all_total_emission'];
+  let all_totalValue = travelValue + refrigerantValue + water_treatmentValue + chemicalsValue + combustion_fuelValue + electricityValue + consumeblesValue + waterValue;
+  sheetData.getRange(lastRow, all_totalColumn).setValue(all_totalValue);
+
+  // Logger.log(water_treatmentEF+' '+industryEF);
+  // Logger.log(water_treatmentVolume);
+}
+
+function carType(car) {
+  let carEF = 0;
+  const carData = sheetDataEF.getDataRange().getValues(); // ดึงข้อมูลทั้งหมดจากแผ่นงาน
+
+  for (var i = 1; i < carData.length; i++) { // เริ่มที่ i = 1 เพื่อข้ามแถวหัวตาราง
+    if (carData[i][index_EF_col['ชนิดของรถ'] - 1] === car) {
+      carEF = carData[i][index_EF_col['ค่าการปล่อยรถ'] - 1]; // ค่าในคอลัมน์ 'ค่าการปล่อย'
+      break;
+    }
+  }
+  return carEF;
+}
+
+function fuelType(fuel) {
+  let fuelEF = 0;
+  const fuelData = sheetDataEF.getDataRange().getValues(); // ดึงข้อมูลทั้งหมดจากแผ่นงาน
+  
+  for (var i = 1; i < fuelData.length; i++) { // เริ่มที่ i = 1 เพื่อข้ามแถวหัวตาราง
+    if (fuelData[i][index_EF_col['น้ำมันรถ'] - 1] === fuel) {
+      fuelEF = fuelData[i][index_EF_col['ค่าการปล่อยน้ำมันรถ'] - 1]; // ค่าในคอลัมน์ 'ค่าการปล่อย'
+      break;
+    }
+  }
+  return fuelEF;
+}
+
+function refrigerantType(refrigerant) {
+  let refrigerantEF = 0;
+  const refrigerantData = sheetDataEF.getDataRange().getValues(); // ดึงข้อมูลทั้งหมดจากแผ่นงาน
+
+  for (var i = 1; i < refrigerantData.length; i++) { // เริ่มที่ i = 1 เพื่อข้ามแถวหัวตาราง
+    if (refrigerantData[i][index_EF_col['ชนิดสารทำความเย็น'] - 1] === refrigerant) {
+      refrigerantEF = refrigerantData[i][index_EF_col['ค่าการปล่อยสารทำความเย็น'] - 1]; // ค่าในคอลัมน์ 'ค่าการปล่อย'
+      break;
+    }
+  }
+  return refrigerantEF;
+}
+
+function water_treatmentType(water_treatment) {
+  let water_treatmentEF = 0;
+  const water_treatmentData = sheetDataEF.getDataRange().getValues(); // ดึงข้อมูลทั้งหมดจากแผ่นงาน
+
+  for (var i = 1; i < water_treatmentData.length; i++) { // เริ่มที่ i = 1 เพื่อข้ามแถวหัวตาราง
+    if (water_treatmentData[i][index_EF_col['วิธีการบำบัดน้ำ'] - 1] === water_treatment) {
+      water_treatmentEF = water_treatmentData[i][index_EF_col['ค่าการปล่อยวิธีการบำบัดน้ำ'] - 1]; // ค่าในคอลัมน์ 'ค่าการปล่อย'
+      break;
+    }
+  }
+  return water_treatmentEF;
+}
+
+function industryType(industry) {
+  let industryEF = 0;
+  const industryData = sheetDataEF.getDataRange().getValues(); // ดึงข้อมูลทั้งหมดจากแผ่นงาน
+
+  for (var i = 1; i < industryData.length; i++) { // เริ่มที่ i = 1 เพื่อข้ามแถวหัวตาราง
+    if (industryData[i][index_EF_col['ประเภทอุตสหกรรม'] - 1] === industry) {
+      industryEF = industryData[i][index_EF_col['ค่าการปล่อยCOD'] - 1]; // ค่าในคอลัมน์ 'ค่าการปล่อย'
+      break;
+    }
+  }
+  return industryEF;
+}
+
+function chemicalsType(chemicals) {
+  let totalChemicalsEF = 0;
+  const chemicalsData = sheetDataEF.getDataRange().getValues(); // ดึงข้อมูลทั้งหมดจากแผ่นงาน
+  const chemicalsList = chemicals.split(","); // แยกตัวเลือกสารเคมีด้วยเครื่องหมายคอมมา
+
+  for (var j = 0; j < chemicalsList.length; j++) {
+    for (var i = 1; i < chemicalsData.length; i++) { // เริ่มที่ i = 1 เพื่อข้ามแถวหัวตาราง
+      if (chemicalsData[i][index_EF_col['สารเคมี'] - 1].trim() === chemicalsList[j].trim()) {
+        let chemicalsEF = chemicalsData[i][index_EF_col['ค่าการปล่อยสารเคมี'] - 1]; // ค่าในคอลัมน์ 'ค่าการปล่อย'
+        totalChemicalsEF += chemicalsEF;
+        break;
+      }
+    }
+  }
+  return totalChemicalsEF;
+}
+
+function combustion_fuelType(combustion_fuel) {
+  let combustion_fuelEF = 0;
+  const combustion_fuelData = sheetDataEF.getDataRange().getValues(); // ดึงข้อมูลทั้งหมดจากแผ่นงาน
+
+  for (var i = 1; i < combustion_fuelData.length; i++) { // เริ่มที่ i = 1 เพื่อข้ามแถวหัวตาราง
+    if (combustion_fuelData[i][index_EF_col['เชื้อเพลิงเผาไหม้'] - 1] === combustion_fuel) {
+      combustion_fuelEF = combustion_fuelData[i][index_EF_col['ค่าการปล่อยเชื้อเพลิงเผาไหม้'] - 1]; // ค่าในคอลัมน์ 'ค่าการปล่อย'
+      break;
+    }
+  }
+  return combustion_fuelEF;
+}
+
+function consumeblesType(consumebles) {
+  let totalConsumeblesEF = 0;
+  const consumeblesData = sheetDataEF.getDataRange().getValues(); // ดึงข้อมูลทั้งหมดจากแผ่นงาน
+  const consumeblesList = consumebles.split(","); // แยกตัวเลือกสารเคมีด้วยเครื่องหมายคอมมา
+
+  for (var j = 0; j < consumeblesList.length; j++) {
+    for (var i = 1; i < consumeblesData.length; i++) { // เริ่มที่ i = 1 เพื่อข้ามแถวหัวตาราง
+      if (consumeblesData[i][index_EF_col['วัสดุสิ้นเปลือง'] - 1].trim() === consumeblesList[j].trim()) {
+        let consumeblesEF = consumeblesData[i][index_EF_col['ค่าการปล่อยวัสดุสิ้นเปลือง'] - 1]; // ค่าในคอลัมน์ 'ค่าการปล่อย'
+        totalConsumeblesEF += consumeblesEF;
+        break;
+      }
+    }
+  }
+  return totalConsumeblesEF;
+}
